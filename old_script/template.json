@@ -10,6 +10,6 @@
     "chip.genome_tsv" : "./mm10.tsv",
 
     "chip.paired_end" : false,
-    # 样本的绝对路径,删除这条注释
     "chip.fastqs_rep1_R1" : [ "rep1_R1_L1.fastq.gz", "rep1_R1_L2.fastq.gz", "rep1_R1_L3.fastq.gz" ],
     "chip.fastqs_rep1_R2" : [ "rep1_R2_L1.fastq.gz", "rep1_R2_L2.fastq.gz", "rep1_R2_L3.fastq.gz" ],
+}
