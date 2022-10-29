@@ -20,3 +20,7 @@ parallel getQC ::: ../data/01_fastq/*.fastq.gz
     -o ../data/02_fastq_afterQC/report/ \
     -f \
     -c ../data/02_fastq_afterQC/report/multiqc_config.yaml
+# use fastqc to check the quality of fastq files, store the results in ../data/02_fastq_afterQC/report_fastqc, and use multiqc to generate a report
+mkdir -p ../data/02_fastq_afterQC/report_fastqc
+fastqc -o ../data/02_fastq_afterQC/report_fastqc ../data/02_fastq_afterQC/*.fastq.gz
+multiqc ../data/02_fastq_afterQC/report_fastqc/ -o ../data/02_fastq_afterQC/report_fastqc/
