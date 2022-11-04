@@ -27,7 +27,8 @@ parallel gzip {} ::: ../data/01_fastq/*.fastq
 # use fastqc to check the quality of fastq files, store the results in ../data/01_fastq/report_fastqc, and use multiqc to generate a report
 mkdir -p ../data/01_fastq/report_fastqc
 fastqc -o ../data/01_fastq/report_fastqc ../data/01_fastq/*.fastq.gz
-/data0/apps/anaconda3# batch rename files in the first column of sample.txt to the corresponding second column, begin at row 2
+/data0/apps/anaconda3/bin/multiqc ../data/01_fastq/report_fastqc/ -o ../data/01_fastq/report_fastqc/
+# batch rename files in the first column of sample.txt to the corresponding second column, begin at row 2
 cat ../data/sample.txt | while read line; do
     # if $line begin with "sample", then skip
     if [[ $line =~ ^sample ]]; then
@@ -42,4 +43,4 @@ for file in ../data/01_fastq/*.fastq.gz*~*; do
     old_name=$file
     new_name=$(echo $old_name | sed -r 's/(.*)\.fastq\.gz\.~([[:digit:]])~/\1_\2\.fastq\.gz/')
     mv $old_name $new_name
-done/bin/multiqc ../data/01_fastq/report_fastqc/ -o ../data/01_fastq/report_fastqc/
+done
