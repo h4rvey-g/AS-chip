@@ -2,7 +2,7 @@
 # if directory index does not exist, run bwa build index
 if [ ! -d ../data/genome/index ]; then
     mkdir -p ../data/genome/index
-    bwa index -p ../data/genome/index/GRCm39 ../data/genome/Mus_musculus.GRCm39.dna.toplevel.fa
+    bwa index -p ../data/genome/index/GRCm39 ../data/genome/GRCm39.genome.fa
 fi
 # Use GNU parallel to run bwa mem
 mkdir -p ../data/03_align
