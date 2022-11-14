@@ -1,3 +1,15 @@
+---
+title: "Peak Annotation"
+author: "Howard Guo"
+output: 
+html_document:
+toc: true
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Load Packages
+```{r, message=FALSE, echo=FALSE}
 library(tidyverse)
 library(ChIPseeker)
 library(rtracklayer)
@@ -6,17 +18,10 @@ library(TxDb.Mmusculus.UCSC.mm39.refGene)
 library(parallel)
 library(foreach)
 library(doParallel)
-# add option mc.cores = 40L
 options(mc.cores = 40L)
-# setwd("script")
-# option_list <- list(
-#     make_option(c("-i", "--input"), type = "character", default = NULL, help = "Input file")
-#     )
-# opt <- parse_args(OptionParser(option_list = option_list))
-# dir_name <- basename(opt$input) %>% str_extract(".*(?=\\.ucsc.*)") %>% paste0("../data/06_annotation/", .)
-# create ../data/06_annotation/ if not exist
-# if (!dir.exists("./data/06_annotation") dir.create("./data/06_annotation")
-# To import broadPeak files
+```
+# Load Data
+```{r}
 extraCols_broadPeak <- c(
     signalValue = "numeric", pValue = "numeric",
     qValue = "numeric"
@@ -26,28 +31,47 @@ for (file in list.files("../data/05_peak_calling", pattern = "broadPeak", full.n
     gr <- import(file, format = "BED", extraCols = extraCols_broadPeak)
     gr_list[[basename(file) %>% str_extract(".*(?=\\.ucsc.*)")]] <- gr
 }
-# Overall annotation status
+```
+# annotate peaks
+```{r,cache=TRUE}
 txdb <- TxDb.Mmusculus.UCSC.mm39.refGene
 anno_list <- mclapply(gr_list, annotatePeak,
     tssRegion = c(-3000, 3000), TxDb = txdb
 )
+```
 # Visulization
-# use for loop to traverse every four elements in gr_list, and use covplot to plot
+## plot peak coverage 
+```{r, fig.width=20, fig.height=15,cached=TRUE}
 myCluster <- makeCluster(50)
 registerDoParallel(myCluster)
-foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = "ChIPseeker") %dopar% {
+foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = c("ChIPseeker","tidyverse")) %dopar% {
     covplot(gr_list[i:(i + 3)], ylab = "Coverage", xlab = "Genomic Position") + facet_grid(chr ~ .id)
 }
-foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = "ChIPseeker") %dopar% {
+stopImplicitCluster()
+```
+## peak heatmap
+```{r}
+foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = c("ChIPseeker","tidyverse")) %do% {
     peakHeatmap(gr_list[i:(i + 3)], color = rainbow(n = 4), TxDb = txdb, upstream = 3000, downstream = 3000) +
         facet_grid(chr ~ .id)
 }
-foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = "ChIPseeker") %dopar% {
+```
+## plot the profile of peaks that align to flank sequences of TSS
+```{r}
+myCluster <- makeCluster(50)
+registerDoParallel(myCluster)
+foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages =c("ChIPseeker","tidyverse")) %dopar% {
     plotAvgProf2(gr_list[i:(i + 3)],
         TxDb = txdb, upstream = 3000, downstream = 3000, ylab = "Read count frequency", xlab = "Genomic Region (5'->3')",
         conf = 0.95, resample = 1000
     ) + facet_grid(chr ~ .id)
 }
+stopImplicitCluster()
+```
+## genomic annotation
+```{r}
+myCluster <- makeCluster(50)
+registerDoParallel(myCluster)
 foreach(i = seq(1, length(anno_list), by = 1), .inorder = TRUE, .packages = "ChIPseeker") %dopar% {
     plotAnnoPie(anno_list[[i]])
 }
@@ -58,3 +82,4 @@ foreach(i = seq(1, length(anno_list), by = 1), .inorder = TRUE, .packages = "ChI
     upsetplot(anno_list[[i]], vennpie = TRUE)
 }
 stopImplicitCluster()
+```
