@@ -35,7 +35,7 @@ anno_list <- mclapply(gr_list, annotatePeak,
 # use for loop to traverse every four elements in gr_list, and use covplot to plot
 myCluster <- makeCluster(50)
 registerDoParallel(myCluster)
-foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = "ChIPseeker") %dopar% {
+foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = c("ChIPseeker","tidyverse")) %dopar% {
     pdf(paste0("../data/06_annotation/", names(gr_list)[i], "_cov",".pdf"))
     covplot(gr_list[i:(i + 3)], ylab = "Coverage", xlab = "Genomic Position") + facet_grid(chr ~ .id)
     dev.off()
@@ -46,7 +46,7 @@ for (i in seq(1, length(gr_list), by = 4)) {
         facet_grid(chr ~ .id)
     dev.off()
 }
-foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = "ChIPseeker") %dopar% {
+foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = c("ChIPseeker","tidyverse")) %dopar% {
     pdf(paste0("../data/06_annotation/", names(gr_list)[i], "_avgprof", ".pdf"))
     plotAvgProf2(gr_list[i:(i + 3)],
         TxDb = txdb, upstream = 3000, downstream = 3000, ylab = "Read count frequency", xlab = "Genomic Region (5'->3')",
@@ -54,17 +54,17 @@ foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = "ChIPs
     ) + facet_grid(chr ~ .id)
     dev.off()
 }
-foreach(i = seq(1, length(anno_list), by = 1), .inorder = TRUE, .packages = "ChIPseeker") %dopar% {
+foreach(i = seq(1, length(anno_list), by = 1), .inorder = TRUE, .packages = c("ChIPseeker","tidyverse")) %dopar% {
     pdf(paste0("../data/06_annotation/", names(anno_list)[i], "_annopie", ".pdf"))
     plotAnnoPie(anno_list[[i]])
     dev.off()
 }
-foreach(i = seq(1, length(anno_list), by = 1), .inorder = TRUE, .packages = "ChIPseeker") %dopar% {
+foreach(i = seq(1, length(anno_list), by = 1), .inorder = TRUE, .packages = c("ChIPseeker","tidyverse")) %dopar% {
     pdf(paste0("../data/06_annotation/", names(anno_list)[i], "_annobar", ".pdf"))
     plotAnnoBar(anno_list[i])
     dev.off()
 }
-foreach(i = seq(1, length(anno_list), by = 1), .inorder = TRUE, .packages = "ChIPseeker") %dopar% {
+foreach(i = seq(1, length(anno_list), by = 1), .inorder = TRUE, .packages = c("ChIPseeker","tidyverse")) %dopar% {
     pdf(paste0("../data/06_annotation/", names(anno_list)[i], "upset", ".pdf"))
     upsetplot(anno_list[[i]], vennpie = TRUE)
     dev.off()
