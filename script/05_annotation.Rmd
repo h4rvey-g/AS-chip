@@ -8,39 +8,8 @@ toc: true
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-# Load Packages
-```{r, message=FALSE, echo=FALSE}
-library(tidyverse)
-library(ChIPseeker)
-library(rtracklayer)
-library(optparse)
-library(TxDb.Mmusculus.UCSC.mm39.refGene)
-library(parallel)
-library(foreach)
-library(doParallel)
-options(mc.cores = 40L)
-```
-# Load Data
-```{r}
-extraCols_broadPeak <- c(
-    signalValue = "numeric", pValue = "numeric",
-    qValue = "numeric"
-)
-gr_list <- list()
-for (file in list.files("../data/05_peak_calling", pattern = "broadPeak", full.names = TRUE)) {
-    gr <- import(file, format = "BED", extraCols = extraCols_broadPeak)
-    gr_list[[basename(file) %>% str_extract(".*(?=\\.ucsc.*)")]] <- gr
-}
-```
-# annotate peaks
-```{r,cache=TRUE}
-txdb <- TxDb.Mmusculus.UCSC.mm39.refGene
-anno_list <- mclapply(gr_list, annotatePeak,
-    tssRegion = c(-3000, 3000), TxDb = txdb
-)
-```
-# Visulization
-## plot peak coverage 
+# 还是在代码里把图做出来，再把图放到这里
+# plot peak coverage 
 ```{r, fig.width=20, fig.height=15,cached=TRUE}
 myCluster <- makeCluster(50)
 registerDoParallel(myCluster)
@@ -49,12 +18,15 @@ foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = c("ChI
 }
 stopImplicitCluster()
 ```
-## peak heatmap
-```{r}
-foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = c("ChIPseeker","tidyverse")) %do% {
+# peak heatmap
+```{r,eval=FALSE}
+for (i in seq(1, length(gr_list), by = 4)) {
     peakHeatmap(gr_list[i:(i + 3)], color = rainbow(n = 4), TxDb = txdb, upstream = 3000, downstream = 3000) +
         facet_grid(chr ~ .id)
 }
+```
+```{r,echo=FALSE}
+knitr::include_graphics("../data/06_annotation/*heatmap.pdf")
 ```
 ## plot the profile of peaks that align to flank sequences of TSS
 ```{r}
