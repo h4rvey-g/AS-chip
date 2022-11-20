@@ -1,19 +1,9 @@
 library(tidyverse)
 library(ChIPseeker)
 library(rtracklayer)
-library(optparse)
 library(TxDb.Mmusculus.UCSC.mm39.refGene)
-library(parallel)
 library(foreach)
 library(doParallel)
-# add option mc.cores = 40L
-options(mc.cores = 40L)
-# setwd("script")
-# option_list <- list(
-#     make_option(c("-i", "--input"), type = "character", default = NULL, help = "Input file")
-#     )
-# opt <- parse_args(OptionParser(option_list = option_list))
-# dir_name <- basename(opt$input) %>% str_extract(".*(?=\\.ucsc.*)") %>% paste0("../data/06_annotation/", .)
 # create ../data/06_annotation/ if not exist
 if (!dir.exists("../data/06_annotation")) dir.create("../data/06_annotation")
 # To import broadPeak files
@@ -28,45 +18,40 @@ for (file in list.files("../data/05_peak_calling", pattern = "broadPeak", full.n
 }
 # Overall annotation status
 txdb <- TxDb.Mmusculus.UCSC.mm39.refGene
-anno_list <- mclapply(gr_list, annotatePeak,
-    tssRegion = c(-3000, 3000), TxDb = txdb
-)
+anno_list <- lapply(gr_list, function(x) annotatePeak(x, tssRegion = c(-3000, 3000), TxDb = txdb))
+package_export <- c("tidyverse", "ChIPseeker")
 # Visulization
 # use for loop to traverse every four elements in gr_list, and use covplot to plot
 myCluster <- makeCluster(50)
 registerDoParallel(myCluster)
-foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = c("ChIPseeker","tidyverse")) %dopar% {
-    pdf(paste0("../data/06_annotation/", names(gr_list)[i], "_cov",".pdf"))
-    covplot(gr_list[i:(i + 3)], ylab = "Coverage", xlab = "Genomic Position") + facet_grid(chr ~ .id)
-    dev.off()
+foreach(i = seq(1, length(gr_list), by = 4),  .packages = package_export) %dopar% {
+    tmp <- covplot(gr_list[i:(i + 3)], ylab = "Coverage", xlab = "Genomic Position") + facet_grid(chr ~ .id)
+    ggsave(tmp, filename = paste0("../data/06_annotation/", names(gr_list)[i], "_cov", ".pdf"), width = 15, height = 10)
 }
-for (i in seq(1, length(gr_list), by = 4)) {
+foreach(i = seq(1, length(gr_list), by = 4),  .packages = package_export,.export = txdb) %dopar% {
     pdf(paste0("../data/06_annotation/", names(gr_list)[i], "_heatmap", ".pdf"))
     peakHeatmap(gr_list[i:(i + 3)], color = rainbow(n = 4), TxDb = txdb, upstream = 3000, downstream = 3000) +
         facet_grid(chr ~ .id)
     dev.off()
 }
-foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = c("ChIPseeker","tidyverse")) %dopar% {
-    pdf(paste0("../data/06_annotation/", names(gr_list)[i], "_avgprof", ".pdf"))
-    plotAvgProf2(gr_list[i:(i + 3)],
+foreach(i = seq(1, length(gr_list), by = 4),  .packages = package_export,.export = c("txdb")) %dopar% {
+    tmp <- plotAvgProf2(gr_list[i:(i + 3)],
         TxDb = txdb, upstream = 3000, downstream = 3000, ylab = "Read count frequency", xlab = "Genomic Region (5'->3')",
         conf = 0.95, resample = 1000
-    ) + facet_grid(chr ~ .id)
-    dev.off()
+    ) + facet_grid( .~ .id)
+    ggsave(tmp, filename = paste0("../data/06_annotation/", names(gr_list)[i], "_avgprof", ".pdf"), width = 15, height = 10)
 }
-foreach(i = seq(1, length(anno_list), by = 1), .inorder = TRUE, .packages = c("ChIPseeker","tidyverse")) %dopar% {
+foreach(i = seq(1, length(anno_list), by = 1),  .packages = package_export) %dopar% {
     pdf(paste0("../data/06_annotation/", names(anno_list)[i], "_annopie", ".pdf"))
     plotAnnoPie(anno_list[[i]])
     dev.off()
 }
-foreach(i = seq(1, length(anno_list), by = 1), .inorder = TRUE, .packages = c("ChIPseeker","tidyverse")) %dopar% {
-    pdf(paste0("../data/06_annotation/", names(anno_list)[i], "_annobar", ".pdf"))
-    plotAnnoBar(anno_list[i])
-    dev.off()
+foreach(i = seq(1, length(anno_list), by = 1),  .packages = package_export) %dopar% {
+    tmp <- plotAnnoBar(anno_list[[i]])
+    ggsave(tmp, filename = paste0("../data/06_annotation/", names(anno_list)[i], "_annobar", ".pdf"), width = 15, height = 10)
 }
-foreach(i = seq(1, length(anno_list), by = 1), .inorder = TRUE, .packages = c("ChIPseeker","tidyverse")) %dopar% {
-    pdf(paste0("../data/06_annotation/", names(anno_list)[i], "upset", ".pdf"))
-    upsetplot(anno_list[[i]], vennpie = TRUE)
-    dev.off()
+foreach(i = seq(1, length(anno_list), by = 1), .packages = package_export) %dopar% {
+    tmp <- upsetplot(anno_list[[i]], vennpie = TRUE)
+    ggsave(tmp, filename = paste0("../data/06_annotation/", names(anno_list)[i], "_annoupset", ".pdf"), width = 15, height = 10)
 }
 stopImplicitCluster()

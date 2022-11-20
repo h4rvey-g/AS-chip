@@ -2,56 +2,55 @@
 title: "Peak Annotation"
 author: "Howard Guo"
 output: 
-html_document:
-toc: true
+pdf_document:
+    toc: true
+    fig.width: 15
+    fig.height: 10
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-# 还是在代码里把图做出来，再把图放到这里
-# plot peak coverage 
-```{r, fig.width=20, fig.height=15,cached=TRUE}
-myCluster <- makeCluster(50)
-registerDoParallel(myCluster)
-foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages = c("ChIPseeker","tidyverse")) %dopar% {
-    covplot(gr_list[i:(i + 3)], ylab = "Coverage", xlab = "Genomic Position") + facet_grid(chr ~ .id)
-}
-stopImplicitCluster()
+
+# plot peak coverage
+
+```{r cov,echo=FALSE}
+cov_pic = list.files(path = "../data/06_annotation", pattern = ".*cov.pdf",full.names=TRUE)
+knitr::include_graphics(cov_pic)
 ```
+
 # peak heatmap
-```{r,eval=FALSE}
-for (i in seq(1, length(gr_list), by = 4)) {
-    peakHeatmap(gr_list[i:(i + 3)], color = rainbow(n = 4), TxDb = txdb, upstream = 3000, downstream = 3000) +
-        facet_grid(chr ~ .id)
-}
-```
+
 ```{r,echo=FALSE}
-knitr::include_graphics("../data/06_annotation/*heatmap.pdf")
+heatmap_pic = list.files(path = "../data/06_annotation", pattern = ".*heatmap.pdf",full.names=TRUE)
+knitr::include_graphics(heatmap_pic)
 ```
-## plot the profile of peaks that align to flank sequences of TSS
-```{r}
-myCluster <- makeCluster(50)
-registerDoParallel(myCluster)
-foreach(i = seq(1, length(gr_list), by = 4), .inorder = TRUE, .packages =c("ChIPseeker","tidyverse")) %dopar% {
-    plotAvgProf2(gr_list[i:(i + 3)],
-        TxDb = txdb, upstream = 3000, downstream = 3000, ylab = "Read count frequency", xlab = "Genomic Region (5'->3')",
-        conf = 0.95, resample = 1000
-    ) + facet_grid(chr ~ .id)
-}
-stopImplicitCluster()
+
+# plot the profile of peaks that align to flank sequences of TSS
+
+```{r avg,echo=FALSE}
+avgprof_pic = list.files(path = "../data/06_annotation", pattern = ".*avgprof.pdf",full.names=TRUE)
+knitr::include_graphics(avgprof_pic)
 ```
-## genomic annotation
-```{r}
-myCluster <- makeCluster(50)
-registerDoParallel(myCluster)
-foreach(i = seq(1, length(anno_list), by = 1), .inorder = TRUE, .packages = "ChIPseeker") %dopar% {
-    plotAnnoPie(anno_list[[i]])
-}
-foreach(i = seq(1, length(anno_list), by = 1), .inorder = TRUE, .packages = "ChIPseeker") %dopar% {
-    plotAnnoBar(anno_list[i])
-}
-foreach(i = seq(1, length(anno_list), by = 1), .inorder = TRUE, .packages = "ChIPseeker") %dopar% {
-    upsetplot(anno_list[[i]], vennpie = TRUE)
-}
-stopImplicitCluster()
+
+# genomic annotation
+
+## pie chart
+
+```{r annopiex,echo=FALSE}
+annopie_pic = list.files(path = "../data/06_annotation", pattern = ".*annopie.pdf",full.names=TRUE)
+knitr::include_graphics(annopie_pic)
+```
+
+## barplot
+
+```{r annobarx,echo=FALSE}
+annobar_pic = list.files(path = "../data/06_annotation", pattern = ".*annobar.pdf",full.names=TRUE)
+knitr::include_graphics(annobar_pic)
+```
+
+## upset plot
+
+```{r annoupsetx,echo=FALSE}
+annoupset_pic = list.files(path = "../data/06_annotation", pattern = ".*annoupset.pdf",full.names=TRUE)
+knitr::include_graphics(annoupset_pic)
 ```
