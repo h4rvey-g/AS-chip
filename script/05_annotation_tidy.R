@@ -1,12 +1,13 @@
 library(tidyverse)
 library(ChIPseeker)
 library(ggpubr)
+library(patchwork)
 library(rtracklayer)
 library(TxDb.Mmusculus.UCSC.mm39.refGene)
 library(furrr)
 library(progressr)
-handlers(global = TRUE)
 options(future.globals.maxSize = 891289600)
+furrr_options(seed = 123)
 # create ../data/06_annotation/ if not exist
 if (!dir.exists("../data/06_annotation")) dir.create("../data/06_annotation")
 if (!dir.exists("../data/06_annotation_tidy")) dir.create("../data/06_annotation_tidy")
@@ -26,9 +27,9 @@ for (file in list.files("../data/05_peak_calling", pattern = "broadPeak", full.n
     gr_list[[basename(file) %>% str_extract(".*(?=\\.ucsc.*)")]] <- gr
 }
 # get all cell types in gr_list names
-# cell_types <- names(gr_list) %>%
-#     str_extract("(?<=[:alnum:]_).*") %>%
-#     unique() %>%
+cell_types <- names(gr_list) %>%
+    str_extract("(?<=[:alnum:]_).*") %>%
+    unique()
 #     factor() %>%
 #     relevel(c(
 #         "LT_HSC", "ST_HSC", "MPP", "CMP", "GMP", "MF",
@@ -37,7 +38,7 @@ for (file in list.files("../data/05_peak_calling", pattern = "broadPeak", full.n
 cell_types <- c(
     "LT_HSC", "ST_HSC", "MPP", "CMP", "GMP", "MF",
     "GN", "Mono", "CLP", "B", "CD4", "CD8", "NK", "MEP", "EryA", "EryB"
-)
+) %>% str_sort()
 # get all histone modifications in gr_list names
 histone_mod <- names(gr_list) %>%
     str_extract("[:alnum:]*(?=_.*)") %>%
@@ -48,7 +49,7 @@ anno_list <- lapply(gr_list, function(x) annotatePeak(x, tssRegion = c(-3000, 30
 package_export <- c("tidyverse", "ChIPseeker")
 # Visulization
 # use for loop to traverse every four elements in gr_list, and use covplot to plot
-plan(multisession, workers = 4)
+plan(multisession, workers = 1)
 foreach(i = seq(1, length(gr_list), by = 4), .packages = package_export) %dopar% {
     tmp <- covplot(gr_list[i:(i + 3)], ylab = "Coverage", xlab = "Genomic Position") + facet_grid(chr ~ .id)
     ggsave(tmp, filename = paste0("../data/06_annotation/", names(gr_list)[i], "_cov", ".pdf"), width = 15, height = 10)
@@ -101,7 +102,7 @@ annobar_list <- modify_at(
     function(x) x + rremove("y.text") + rremove("y.ticks") + rremove("y.title")
 )
 final_bar <- wrap_plots(annobar_list, ncol = 4, guides = "collect")
-ggsave("a.pdf", final_bar)
+ggsave("../data/06_annotation_tidy/annobar/annobar.pdf", final_bar)
 foreach(
     i = seq(1, length(histone_mod), by = 1),
     .packages = package_export, .export = c("cell_types", "histone_mod", "anno_list")
