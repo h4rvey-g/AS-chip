@@ -46,7 +46,11 @@ histone_mod <- names(gr_list) %>%
 # Overall annotation status
 txdb <- TxDb.Mmusculus.UCSC.mm39.refGene
 anno_list <- lapply(gr_list, function(x) annotatePeak(x, tssRegion = c(-3000, 3000), TxDb = txdb))
-package_export <- c("tidyverse", "ChIPseeker")
+# no first exon in anno_list$H3K4me1_LT_HSC, add a dull element to make it have the same length as others
+anno_list$H3K4me1_LT_HSC@annoStat <- add_row(anno_list$H3K4me1_LT_HSC@annoStat, Feature = "1st Exon", Frequency = 0.00000001)
+normal_order <- anno_list$H3K4me1_ST_HSC@annoStat$Feature
+anno_list$H3K4me1_LT_HSC@annoStat <- anno_list$H3K4me1_LT_HSC@annoStat[match(normal_order, anno_list$H3K4me1_LT_HSC@annoStat$Feature), ]
+anno_list$H3K4me1_LT_HSC@annoStat <- anno_list$H3K4me1_ST_HSC@annoStat
 # Visulization
 # use for loop to traverse every four elements in gr_list, and use covplot to plot
 plan(multisession, workers = 1)
@@ -60,6 +64,29 @@ foreach(i = seq(1, length(gr_list), by = 4), .packages = package_export, .export
         facet_grid(chr ~ .id)
     dev.off()
 }
+############################################################################################################
+# avgprof
+############################################################################################################
+get_avgprof_plot <- function(histone_mod_tmp, p) {
+    p()
+    # get elements in gr_list with names start with histone_mod_tmp
+    gr_list_tmp <- gr_list[names(gr_list) %>% str_detect(histone_mod_tmp)]
+    names(gr_list_tmp) <- names(gr_list_tmp) %>% str_replace(paste0(histone_mod_tmp, "_"), "")
+    gr_list_tmp <- gr_list_tmp[cell_types]
+    # plot avgprof
+    sing_plot <- plotAvgProf2(gr_list_tmp,
+        TxDb = txdb, upstream = 3000, downstream = 3000, ylab = "Read count frequency", xlab = "Genomic Region (5'->3')",
+        conf = 0.95, resample = 1000
+    ) + facet_grid(. ~ .id)
+    sing_plot
+}
+with_progress({
+    p <- progressor(along = histone_mod)
+    avgprof_list <- future_map(histone_mod, get_avgprof_plot, p = p) %>% setNames(histone_mod)
+})
+final_bar <- wrap_plots(avgprof_list, nrow = 4, guides = "collect")
+ggsave("../data/06_annotation_tidy/avgprof/avgprof.pdf", final_bar)
+
 foreach(i = seq(1, length(gr_list), by = 4), .packages = package_export, .export = c("txdb")) %dopar% {
     tmp <- plotAvgProf2(gr_list[i:(i + 3)],
         TxDb = txdb, upstream = 3000, downstream = 3000, ylab = "Read count frequency", xlab = "Genomic Region (5'->3')",
@@ -67,11 +94,29 @@ foreach(i = seq(1, length(gr_list), by = 4), .packages = package_export, .export
     ) + facet_grid(. ~ .id)
     ggsave(tmp, filename = paste0("../data/06_annotation/", names(gr_list)[i], "_avgprof", ".pdf"), width = 15, height = 10)
 }
-foreach(i = seq(1, length(anno_list), by = 1), .packages = package_export) %dopar% {
-    pdf(paste0("../data/06_annotation/", names(anno_list)[i], "_annopie", ".pdf"))
-    plotAnnoPie(anno_list[[i]])
+############################################################################################################
+# annopie
+############################################################################################################
+# NOTE: plotAnnoPie() creates vanilla R plots, so it can't be treated in ggplot way
+get_anno_pie <- function(histone_mod_tmp, p) {
+    p()
+    # get elements in anno_list with names start with histone_mod_tmp
+    anno_list_tmp <- anno_list[names(anno_list) %>% str_detect(histone_mod_tmp)]
+    names(anno_list_tmp) <- names(anno_list_tmp) %>% str_replace(paste0(histone_mod_tmp, "_"), "")
+    # order anno_list_tmp by cell_types order
+    anno_list_tmp <- anno_list_tmp[cell_types]
+    # use future_map to plot pie chart for each cell type in anno_list_tmp
+    pdf(paste0("../data/06_annotation_tidy/annopie/", histone_mod_tmp, ".pdf"))
+    par(mfrow = c(4, 4))
+    # use lapply to plot pie chart for each cell type in anno_list_tmp, title = histone_mod_tmp
+    lapply(anno_list_tmp, function(x) plotAnnoPie(x, title = histone_mod_tmp))
+    # walk(anno_list_tmp, plotAnnoPie, title = histone_mod_tmp)
     dev.off()
 }
+with_progress({
+    p <- progressor(along = histone_mod)
+    annopie_list <- future_walk(histone_mod, get_anno_pie, p = p) %>% setNames(histone_mod)
+})
 ############################################################################################################
 # annobar
 ############################################################################################################
@@ -103,17 +148,6 @@ annobar_list <- modify_at(
 )
 final_bar <- wrap_plots(annobar_list, ncol = 4, guides = "collect")
 ggsave("../data/06_annotation_tidy/annobar/annobar.pdf", final_bar)
-foreach(
-    i = seq(1, length(histone_mod), by = 1),
-    .packages = package_export, .export = c("cell_types", "histone_mod", "anno_list")
-) %dopar% {
-    histone_mod_tmp <- histone_mod[i]
-    # get elements in anno_list with names start with histone_mod_tmp
-    anno_list_tmp <- anno_list[names(anno_list) %>% str_detect(histone_mod_tmp)]
-    # plotAnnobar, empty theme
-    annobar_list[[histone_mod_tmp]] <- plotAnnoBar(anno_list_tmp) + theme_void()
-}
-ggsave(tmp, filename = paste0("../data/06_annotation/", names(anno_list)[i], "_annobar", ".pdf"), width = 15, height = 10)
 foreach(i = seq(1, length(anno_list), by = 1), .packages = package_export) %dopar% {
     tmp <- upsetplot(anno_list[[i]], vennpie = TRUE)
     ggsave(tmp, filename = paste0("../data/06_annotation/", names(anno_list)[i], "_annoupset", ".pdf"), width = 15, height = 10)
