@@ -1,6 +1,7 @@
 library(tidyverse)
 library(ChIPseeker)
 library(ggpubr)
+library(ggplotify)
 library(patchwork)
 library(rtracklayer)
 library(TxDb.Mmusculus.UCSC.mm39.refGene)
@@ -67,6 +68,7 @@ foreach(i = seq(1, length(gr_list), by = 4), .packages = package_export, .export
 ############################################################################################################
 # avgprof
 ############################################################################################################
+plan(multicore)
 get_avgprof_plot <- function(histone_mod_tmp, p) {
     p()
     # get elements in gr_list with names start with histone_mod_tmp
@@ -75,29 +77,27 @@ get_avgprof_plot <- function(histone_mod_tmp, p) {
     gr_list_tmp <- gr_list_tmp[cell_types]
     # plot avgprof
     sing_plot <- plotAvgProf2(gr_list_tmp,
-        TxDb = txdb, upstream = 3000, downstream = 3000, ylab = "Read count frequency", xlab = "Genomic Region (5'->3')",
-        conf = 0.95, resample = 1000
-    ) + facet_grid(. ~ .id)
+        TxDb = txdb, upstream = 3000, downstream = 3000,
+        conf = 0.95, resample = 1000, facet = "column",
+        free_y = TRUE, xlab = NULL, ylab = histone_mod_tmp
+    )
     sing_plot
 }
 with_progress({
     p <- progressor(along = histone_mod)
     avgprof_list <- future_map(histone_mod, get_avgprof_plot, p = p) %>% setNames(histone_mod)
 })
-final_bar <- wrap_plots(avgprof_list, nrow = 4, guides = "collect")
-ggsave("../data/06_annotation_tidy/avgprof/avgprof.pdf", final_bar)
-
-foreach(i = seq(1, length(gr_list), by = 4), .packages = package_export, .export = c("txdb")) %dopar% {
-    tmp <- plotAvgProf2(gr_list[i:(i + 3)],
-        TxDb = txdb, upstream = 3000, downstream = 3000, ylab = "Read count frequency", xlab = "Genomic Region (5'->3')",
-        conf = 0.95, resample = 1000
-    ) + facet_grid(. ~ .id)
-    ggsave(tmp, filename = paste0("../data/06_annotation/", names(gr_list)[i], "_avgprof", ".pdf"), width = 15, height = 10)
-}
+avgprof_list <- modify(
+    avgprof_list,
+    function(x) x + rremove("x.text") + rremove("x.ticks") + rremove("x.title")
+)
+final_avgprof <- wrap_plots(avgprof_list, nrow = 4, guides = "auto")
+ggsave("../data/06_annotation_tidy/avgprof/avgprof.pdf", final_avgprof, width = 14)
 ############################################################################################################
 # annopie
 ############################################################################################################
 # NOTE: plotAnnoPie() creates vanilla R plots, so it can't be treated in ggplot way
+plan(multicore)
 get_anno_pie <- function(histone_mod_tmp, p) {
     p()
     # get elements in anno_list with names start with histone_mod_tmp
@@ -106,17 +106,21 @@ get_anno_pie <- function(histone_mod_tmp, p) {
     # order anno_list_tmp by cell_types order
     anno_list_tmp <- anno_list_tmp[cell_types]
     # use future_map to plot pie chart for each cell type in anno_list_tmp
-    pdf(paste0("../data/06_annotation_tidy/annopie/", histone_mod_tmp, ".pdf"))
-    par(mfrow = c(4, 4))
-    # use lapply to plot pie chart for each cell type in anno_list_tmp, title = histone_mod_tmp
-    lapply(anno_list_tmp, function(x) plotAnnoPie(x, title = histone_mod_tmp))
-    # walk(anno_list_tmp, plotAnnoPie, title = histone_mod_tmp)
-    dev.off()
+    column_plot <- lapply(anno_list_tmp, function(x) {~ as_grob(plotAnnoPie(x));current_env()})
+    # column_plot <- wrap_plots(f_eval(column_plot), nrow = 4, guides = "collect")
+    # gg_plotAnnoPie <- function(x) {
+    #     tmp <- as.ggplot(expression(plotAnnoPie(x)))
+    #     tmp
+    # }
+    # column_plot <- map(anno_list_tmp, gg_plotAnnoPie,x=histone_mod_tmp)
+    column_plot
 }
 with_progress({
     p <- progressor(along = histone_mod)
-    annopie_list <- future_walk(histone_mod, get_anno_pie, p = p) %>% setNames(histone_mod)
+    annopie_list <- future_map(histone_mod, get_anno_pie, p = p) %>% setNames(histone_mod)
 })
+tmp <- map(annopie_list$H3K4me3, cowplot::as_gtable)
+tmp <- plot_grid(annopie_list$H3K4me3, ncol = 1)
 ############################################################################################################
 # annobar
 ############################################################################################################
