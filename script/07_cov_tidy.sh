@@ -14,7 +14,7 @@ for file in ../data/08_bed2cov/cov/*.cov; do
         #add column name, tab separated
         awk -v FS='\t' -v OFS='\t' -v st="$site" 'BEGIN{print "loci","H3K27Ac_"st,"H3K4me1_"st,"H3K4me2_"st,"H3K4me3_"st}{print $0}' >$file.tidy
 done
-cells=$(ls -1a ../data/04_post_align/*.bam | sed -E 's/.*_([[:alnum:]]*)\.ucsc\.bam/\1/' | sort | uniq)
+cells=$(ls -1a ../data/04_post_align/*.bam | sed -E 's/\.\.\/data\/04_post_align\/[[:alnum:].]*_(.*)\.ucsc\.bam/\1/' | sort | uniq)
 as_type=(SE MXE A5SS A3SS RI)
 for sing_as in ${as_type[@]}; do
     for sing_cell in $cells; do
@@ -25,7 +25,7 @@ for sing_as in ${as_type[@]}; do
         # display num_files
         echo $num_files
         # paste the files, tab separated, remove columns with column name "loci"
-        if [ $sing_as == "RI" ]; then
+        if [ $num_files -eq 2 ]; then
             paste -d '\t' $files | cut --complement -f6 >../data/08_bed2cov/$sing_as.$sing_cell.cov
         elif [ $num_files -eq 3 ]; then
             paste -d '\t' $files | cut --complement -f6,11 >../data/08_bed2cov/$sing_as.$sing_cell.cov
