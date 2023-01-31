@@ -1,5 +1,4 @@
 #!/bin/bash
-. $(which env_parallel.bash)
 mkdir -p ../data/08_bed2cov/cov
 function f_bed2cov() {
     file=$1
@@ -14,6 +13,7 @@ function f_bed2cov() {
     paste -d '\t' <(echo "$tmpc") $file_tmp >$file.tmp2
     function bedtools_multicov() {
         cell=$1
+        file=$2
         # get the *.bam files containing $cell, with relative path, use find, tab separated, sort
         bam=$(find ../data/04_post_align/ -name "*_$cell.ucsc.bam" | sort)
         # get the total count of reads in each bam file, use samtools view
@@ -26,8 +26,7 @@ function f_bed2cov() {
                 >../data/08_bed2cov/cov/$(basename $file .JCEC.bed).$cell.cov
     }
     export -f bedtools_multicov
-    . $(which env_parallel.bash)
-    env_parallel --env file bedtools_multicov ::: $cells
+    parallel bedtools_multicov ::: $cells ::: $file
     rm $file_tmp && rm $file.tmp2
 }
 export -f f_bed2cov
